@@ -105,6 +105,7 @@ func updateProcesses(processes *ProcessList) {
 		}
 		updateProcessesFromList(processes, files)
 
+		time.Sleep(time.Second)
 	}
 }
 
@@ -132,15 +133,26 @@ func displayProcesses(processes *ProcessList) {
 
 		})
 
-		fmt.Print("\033[H\033[2J")
+		fmt.Print("\033[3J\033[H\033[2J")
 		for _, process := range processes_view {
-			cmdname := strings.SplitN(process.cmdline, " ", 2)[0]
-			if cmdname == "" {
+
+			if process.cmdline == "" {
 				continue
 			}
 
-			fmt.Printf("%04d %-50s (%s)!\n", process.pid, cmdname, process.end)
+			cmdpath := strings.SplitN(process.cmdline, " ", 2)[0]
+			path_elts := strings.Split(cmdpath, "/")
+			cmdprog := path_elts[len(path_elts)-1]
+
+			if cmdprog == "" && process.cmdline != "" {
+				log.Fatalf("%s generated empty command prog (path = %s)", process.cmdline, cmdpath)
+			}
+
+			end_time := process.end.Format("15:04:05")
+			fmt.Printf("%05d %-25s %s\n", process.pid, cmdprog, end_time)
 		}
+
+		time.Sleep(time.Second)
 	}
 }
 
@@ -148,7 +160,9 @@ func main() {
 	processes := ProcessList{list: make(map[ProcessId]*Process)}
 
 	go updateProcesses(&processes)
-	go displayProcesses(&processes)
+	if len(os.Args) > 1 && os.Args[1] == "display" {
+		go displayProcesses(&processes)
+	}
 
 	select {}
 }
