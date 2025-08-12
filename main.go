@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,16 +13,76 @@ import (
 	"os"
 )
 
+type ProcessId struct {
+	pid   int
+	start int
+}
+
 type Process struct {
 	mutex   sync.Mutex
 	cmdline string
-	start   time.Time
 	end     time.Time
 }
 
 type ProcessList struct {
 	mutex sync.Mutex
-	list  map[int]*Process
+	list  map[ProcessId]*Process
+}
+
+func cmdLine(pid string) (string, error) {
+	cmdlinePath := filepath.Join("/proc", pid, "cmdline")
+	data, err := os.ReadFile(cmdlinePath)
+	if err != nil || len(data) == 0 {
+		return "", err
+	}
+	return strings.ReplaceAll(string(data), "\x00", " "), nil
+}
+
+func start(pid string) int {
+	statPath := filepath.Join("/proc", pid, "stat")
+	data, err := os.ReadFile(statPath)
+	if err != nil {
+		log.Fatalf("[PID %s]: cmdline is present, but not %s", pid, statPath)
+	}
+
+	fields := strings.Fields(string(data))
+	if len(fields) < 22 {
+		log.Fatalf("[PID %s]: found %d columns in %s, expected at least 22.", pid, len(fields), statPath)
+	}
+
+	start, err := strconv.Atoi(fields[21])
+	if err != nil {
+		log.Fatalf("[PID %s]: start time %s is not a valid number.", pid, fields[21])
+	}
+	return start
+}
+
+func updateProcess(processes *ProcessList, pid_str string) {
+	pid, err := strconv.Atoi(pid_str)
+	if err != nil {
+		return
+	}
+
+	cmdline, err := cmdLine(pid_str)
+	if err != nil {
+		return
+	}
+
+	start := start(pid_str)
+	process_id := ProcessId{pid: pid, start: start}
+
+	processes.mutex.Lock()
+
+	value, ok := processes.list[process_id]
+	if ok {
+		processes.mutex.Unlock()
+		value.mutex.Lock()
+		value.end = time.Now()
+		value.mutex.Unlock()
+	} else {
+		processes.list[process_id] = &Process{end: time.Now(), cmdline: cmdline}
+		processes.mutex.Unlock()
+	}
 }
 
 func updateProcessesFromList(processes *ProcessList, files []os.DirEntry) {
@@ -32,29 +93,7 @@ func updateProcessesFromList(processes *ProcessList, files []os.DirEntry) {
 		}
 
 		pid := file.Name()
-		pid_int, err := strconv.Atoi(pid)
-		if err != nil {
-			continue
-		}
-
-		cmdlinePath := filepath.Join("/proc", pid, "cmdline")
-		data, err := os.ReadFile(cmdlinePath)
-		if err != nil || len(data) == 0 {
-			continue
-		}
-		cmdline := strings.ReplaceAll(string(data), "\x00", " ")
-
-		processes.mutex.Lock()
-		value, ok := processes.list[pid_int]
-		if ok {
-			processes.mutex.Unlock()
-			value.mutex.Lock()
-			value.end = time.Now()
-			value.mutex.Unlock()
-		} else {
-			processes.list[pid_int] = &Process{end: time.Now(), start: time.Now(), cmdline: cmdline}
-			processes.mutex.Unlock()
-		}
+		updateProcess(processes, pid)
 	}
 }
 
@@ -69,22 +108,44 @@ func updateProcesses(processes *ProcessList) {
 	}
 }
 
+type ProcessDisplay struct {
+	pid     int
+	start   int
+	end     time.Time
+	cmdline string
+}
+
 func displayProcesses(processes *ProcessList) {
 	for {
+		processes_view := []ProcessDisplay{}
+
 		processes.mutex.Lock()
-		for pid, process := range processes.list {
+		for id, process := range processes.list {
 			process.mutex.Lock()
-			if strings.Contains(process.cmdline, "alacritty") {
-				fmt.Printf("!%d: %s (%s->%s)!\n", pid, process.cmdline, process.start, process.end)
-			}
+			processes_view = append(processes_view, ProcessDisplay{pid: id.pid, start: id.start, cmdline: process.cmdline, end: process.end})
 			process.mutex.Unlock()
 		}
 		processes.mutex.Unlock()
+
+		sort.Slice(processes_view, func(i, j int) bool {
+			return processes_view[i].pid < processes_view[j].pid
+
+		})
+
+		fmt.Print("\033[H\033[2J")
+		for _, process := range processes_view {
+			cmdname := strings.SplitN(process.cmdline, " ", 2)[0]
+			if cmdname == "" {
+				continue
+			}
+
+			fmt.Printf("%04d %-50s (%s)!\n", process.pid, cmdname, process.end)
+		}
 	}
 }
 
 func main() {
-	processes := ProcessList{list: make(map[int]*Process)}
+	processes := ProcessList{list: make(map[ProcessId]*Process)}
 
 	go updateProcesses(&processes)
 	go displayProcesses(&processes)
