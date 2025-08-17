@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
-	"path/filepath"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"os"
+	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type ProcessId struct {
