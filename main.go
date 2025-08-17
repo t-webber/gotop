@@ -73,6 +73,7 @@ func updateProcess(processes *ProcessList, pid_str string) {
 
 	start := start(pid_str)
 	process_id := ProcessId{pid: pid, start: start}
+	end := time.Now()
 
 	processes.mutex.Lock()
 
@@ -80,10 +81,10 @@ func updateProcess(processes *ProcessList, pid_str string) {
 	if ok {
 		processes.mutex.Unlock()
 		value.mutex.Lock()
-		value.end = time.Now()
+		value.end = end
 		value.mutex.Unlock()
 	} else {
-		processes.list[process_id] = &Process{end: time.Now(), cmdline: cmdline}
+		processes.list[process_id] = &Process{end: end, cmdline: cmdline}
 		processes.mutex.Unlock()
 	}
 }
@@ -182,14 +183,19 @@ func getDbPath() string {
 
 }
 
-func getDb() *sql.DB {
+func getDb(resetDb bool) Db {
 	dbPath := getDbPath()
+	if resetDb {
+		if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
+			log.Fatalf("Failed to remove %s: %s", dbPath, err)
+		}
+	}
 	log.Printf("Saving data to %s.\n", dbPath)
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatalf("Access to %s denied: %s", dbPath, err)
 	}
-	return db
+	return Db{db: db}
 }
 
 func initDb(db *sql.DB) {
@@ -199,7 +205,8 @@ CREATE TABLE IF NOT EXISTS processes (
 	pid     INTEGER  NOT NULL,
 	start   INTEGER  NOT NULL,
 	end     DATETIME NOT NULL,
-	cmdline TEXT 	 NOT NULL
+	cmdline TEXT 	 NOT NULL,
+	UNIQUE(pid, start)
 )
 	`)
 
@@ -208,15 +215,47 @@ CREATE TABLE IF NOT EXISTS processes (
 	}
 }
 
+type Args struct {
+	resetDb bool
+	display bool
+}
+
+func parseArgs() Args {
+	args := Args{resetDb: false, display: false}
+
+	for idx, elt := range os.Args {
+		if elt == "display" {
+			args.display = true
+		} else if elt == "resetDb" {
+			args.resetDb = true
+		} else if idx != 0 {
+			log.Fatalf("Invalid command line argument: %s", elt)
+		}
+	}
+
+	return args
+}
+
+type Db struct {
+	db    *sql.DB
+	mutex sync.Mutex
+}
+
 func main() {
-	db := getDb()
-	initDb(db)
+	log.Println("Starting!")
+
+	args := parseArgs()
+
+	db := getDb(args.resetDb)
+	initDb(db.db)
 
 	processes := ProcessList{list: make(map[ProcessId]*Process)}
 
 	go updateProcesses(&processes)
-	if len(os.Args) > 1 && os.Args[1] == "display" {
+	if args.display {
 		go displayProcesses(&processes)
+	} else {
+		log.Println("Running...")
 	}
 
 	select {}
