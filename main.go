@@ -122,6 +122,8 @@ type ProcessDisplay struct {
 
 func displayProcesses(processes *ProcessList) {
 	for {
+		time.Sleep(time.Second)
+
 		processes_view := []ProcessDisplay{}
 
 		processes.mutex.Lock()
@@ -155,8 +157,6 @@ func displayProcesses(processes *ProcessList) {
 			end_time := process.end.Format("15:04:05")
 			fmt.Printf("%05d %-25s %s\n", process.pid, cmdprog, end_time)
 		}
-
-		time.Sleep(time.Second)
 	}
 }
 
@@ -175,12 +175,12 @@ func getDataHomePath() string {
 func getDbPath() string {
 	dataHome := getDataHomePath()
 	dataAppFolder := filepath.Join(dataHome, "gotop")
-	err := os.MkdirAll(dataAppFolder, 0744)
-	if err != nil {
+
+	if err := os.MkdirAll(dataAppFolder, 0744); err != nil {
 		log.Fatalf("Failed to create data dir at %s: %s", dataAppFolder, err)
 	}
-	return filepath.Join(dataAppFolder, "db.sqlite3")
 
+	return filepath.Join(dataAppFolder, "db.sqlite3")
 }
 
 func getDb(resetDb bool) Db {
@@ -241,6 +241,41 @@ type Db struct {
 	mutex sync.Mutex
 }
 
+func storeProcesses(processes *ProcessList, db *Db) {
+	for {
+		time.Sleep(time.Second)
+
+		processes_view := []ProcessDisplay{}
+
+		processes.mutex.Lock()
+		for id, process := range processes.list {
+			process.mutex.Lock()
+			processes_view = append(processes_view, ProcessDisplay{pid: id.pid, start: id.start, cmdline: process.cmdline, end: process.end})
+			process.mutex.Unlock()
+		}
+		processes.mutex.Unlock()
+
+		for _, process := range processes_view {
+			db.mutex.Lock()
+
+			query := `
+INSERT INTO processes(pid, start, end, cmdline) VALUES(?, ?, ?, ?)
+ON CONFLICT(pid, start) DO UPDATE SET
+	end = excluded.end,
+	cmdline = excluded.cmdline;
+`
+
+			_, err := db.db.Exec(query, process.pid, process.start, process.end, process.cmdline)
+
+			db.mutex.Unlock()
+
+			if err != nil {
+				log.Fatalf("Failed to update process %d: %s", process.cmdline, err)
+			}
+		}
+	}
+}
+
 func main() {
 	log.Println("Starting!")
 
@@ -252,6 +287,7 @@ func main() {
 	processes := ProcessList{list: make(map[ProcessId]*Process)}
 
 	go updateProcesses(&processes)
+	go storeProcesses(&processes, &db)
 	if args.display {
 		go displayProcesses(&processes)
 	} else {
