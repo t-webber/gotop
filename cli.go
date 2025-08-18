@@ -5,11 +5,13 @@ import (
 	"os"
 )
 
+// Represents the arguments passed by the user through argv
 type args struct {
 	resetDb bool
 	display bool
 }
 
+// Read given argvs to build args
 func parseArgs() args {
 	args := args{resetDb: false, display: false}
 

@@ -10,22 +10,26 @@ import (
 	"time"
 )
 
+// Stores the id of a process
 type processId struct {
 	pid   int
 	start int
 }
 
+// Stores the data of one process
 type process struct {
 	mutex   sync.Mutex
 	cmdline string
 	end     time.Time
 }
 
+// Stores all the processes that are watched.
 type processList struct {
 	mutex sync.Mutex
 	list  map[processId]*process
 }
 
+// Fetches the cmdline of a process, by reading /proc/<pid>/cmdline
 func getCmdLine(pid string) (string, error) {
 	cmdlinePath := filepath.Join("/proc", pid, "cmdline")
 	data, err := os.ReadFile(cmdlinePath)
@@ -35,6 +39,7 @@ func getCmdLine(pid string) (string, error) {
 	return strings.ReplaceAll(string(data), "\x00", " "), nil
 }
 
+// Fetches the start time of a process, by reading /proc/<pid>/stat
 func getStart(pid string) int {
 	statPath := filepath.Join("/proc", pid, "stat")
 	data, err := os.ReadFile(statPath)
@@ -54,6 +59,7 @@ func getStart(pid string) int {
 	return start
 }
 
+// Locks the processList and the current process to update the process with the new data.
 func updateProcessWithData(processes *processList, processId processId, cmdline string, end time.Time) {
 	processes.mutex.Lock()
 
@@ -69,6 +75,9 @@ func updateProcessWithData(processes *processList, processId processId, cmdline 
 	}
 }
 
+// Fetches the interesting data of a process, and update it.
+//
+// This includes cmdline, pid, start and end time of the process.
 func updateProcess(processes *processList, file os.DirEntry) {
 	pid_str := file.Name()
 	pid, err := strconv.Atoi(pid_str)
@@ -89,6 +98,7 @@ func updateProcess(processes *processList, file os.DirEntry) {
 
 }
 
+// Finds the folders of /proc, and updates the process they represent.
 func updateProcessFromList(processes *processList, files []os.DirEntry) {
 	for _, file := range files {
 		if !file.IsDir() {
@@ -99,6 +109,9 @@ func updateProcessFromList(processes *processList, files []os.DirEntry) {
 	}
 }
 
+// Updates all from the processList
+//
+// This function reads /proc and updates the list of running processes.
 func updateProcesses(processes *processList) {
 	for {
 		files, err := os.ReadDir("/proc")

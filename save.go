@@ -9,11 +9,13 @@ import (
 	"time"
 )
 
+// Wrapper for sql.DB for concurrency management
 type db struct {
 	db    *sql.DB
 	mutex sync.Mutex
 }
 
+// Returns the value of XDG_DATA_HOME
 func getDataHomePath() string {
 	dataHome := os.Getenv("XDG_DATA_HOME")
 	if dataHome != "" {
@@ -26,6 +28,7 @@ func getDataHomePath() string {
 	return filepath.Join(home, ".local", "share")
 }
 
+// Returns the path at which the sqlite file is stored
 func getDbPath() string {
 	dataHome := getDataHomePath()
 	dataAppFolder := filepath.Join(dataHome, "gotop")
@@ -37,6 +40,7 @@ func getDbPath() string {
 	return filepath.Join(dataAppFolder, "db.sqlite3")
 }
 
+// Connect the database to create a db instance
 func getDb(resetDb bool) db {
 	dbPath := getDbPath()
 	if resetDb {
@@ -52,8 +56,7 @@ func getDb(resetDb bool) db {
 	return db{db: handle}
 }
 
-func initDb(db *sql.DB) {
-	_, err := db.Exec(`
+const createProcessTableQuery string = `
 CREATE TABLE IF NOT EXISTS processes (
 	id 	INTEGER  PRIMARY KEY AUTOINCREMENT,
 	pid     INTEGER  NOT NULL,
@@ -61,39 +64,32 @@ CREATE TABLE IF NOT EXISTS processes (
 	end     DATETIME NOT NULL,
 	cmdline TEXT 	 NOT NULL,
 	UNIQUE(pid, start)
-)
-	`)
+)`
 
-	if err != nil {
+// Ensure database is initialised with the right tables
+func initDb(db *sql.DB) {
+	if _, err := db.Exec(createProcessTableQuery); err != nil {
 		log.Fatalf("[sql error] Failed to create processes table: %s", err)
 	}
 }
 
+const insertProcessQuery string = `
+INSERT INTO processes(pid, start, end, cmdline) VALUES(?, ?, ?, ?)
+ON CONFLICT(pid, start) DO UPDATE SET
+	end = excluded.end,
+	cmdline = excluded.cmdline;`
+
+// Store the current process
 func storeProcesses(processes *processList, db *db) {
 	for {
 		time.Sleep(time.Second)
 
-		processes_view := []processDisplay{}
-
-		processes.mutex.Lock()
-		for id, process := range processes.list {
-			process.mutex.Lock()
-			processes_view = append(processes_view, processDisplay{pid: id.pid, start: id.start, cmdline: process.cmdline, end: process.end})
-			process.mutex.Unlock()
-		}
-		processes.mutex.Unlock()
+		processes_view := copyProcesses(processes)
 
 		for _, process := range processes_view {
 			db.mutex.Lock()
 
-			query := `
-INSERT INTO processes(pid, start, end, cmdline) VALUES(?, ?, ?, ?)
-ON CONFLICT(pid, start) DO UPDATE SET
-	end = excluded.end,
-	cmdline = excluded.cmdline;
-`
-
-			_, err := db.db.Exec(query, process.pid, process.start, process.end, process.cmdline)
+			_, err := db.db.Exec(insertProcessQuery, process.pid, process.start, process.end, process.cmdline)
 
 			db.mutex.Unlock()
 
