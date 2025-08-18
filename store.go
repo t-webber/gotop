@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS processes (
 	start   INTEGER  NOT NULL,
 	end     DATETIME NOT NULL,
 	cmdline TEXT 	 NOT NULL,
-	UNIQUE(pid, start)
+	UNIQUE(pid, start, cmdline)
 )`
 
 // Ensure database is initialised with the right tables
@@ -74,10 +74,9 @@ func initDb(db *sql.DB) {
 }
 
 const insertProcessQuery string = `
-INSERT INTO processes(pid, start, end, cmdline) VALUES(?, ?, ?, ?)
-ON CONFLICT(pid, start) DO UPDATE SET
-	end = excluded.end,
-	cmdline = excluded.cmdline;`
+INSERT INTO processes(pid, start, cmdline, end) VALUES(?, ?, ?, ?)
+ON CONFLICT(pid, start, cmdline) DO UPDATE SET
+	end = excluded.end;`
 
 // Store the current process
 func storeProcesses(processes *processList, db *db) {
@@ -93,7 +92,7 @@ func storeProcesses(processes *processList, db *db) {
 		}
 
 		for _, process := range processes_view {
-			_, err := tx.Exec(insertProcessQuery, process.pid, process.start, process.end, process.cmdline)
+			_, err := tx.Exec(insertProcessQuery, process.pid, process.start, process.cmdline, process.end)
 
 			if err != nil {
 				log.Fatalf("Failed to update process %s: %s", process.cmdline, err)
