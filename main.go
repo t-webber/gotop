@@ -15,12 +15,14 @@ func main() {
 	processes := processList{list: make(map[processId]*process)}
 
 	go updateProcesses(&processes)
-	go storeProcesses(&processes, &db)
 	if args.display {
 		go displayProcesses(&processes)
 	} else {
 		log.Println("Running...")
 	}
+
+	loadProcesses(db.db, &processes)
+	go storeProcesses(&processes, &db)
 
 	select {}
 }
