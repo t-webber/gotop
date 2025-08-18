@@ -8,29 +8,6 @@ import (
 	"time"
 )
 
-type processDisplay struct {
-	pid     int
-	start   int
-	end     time.Time
-	cmdline string
-}
-
-// Copy the processList to unlock the mutex faster
-func copyProcesses(processes *processList) []processDisplay {
-
-	processes_view := []processDisplay{}
-
-	processes.mutex.Lock()
-	for id, process := range processes.list {
-		process.mutex.Lock()
-		processes_view = append(processes_view, processDisplay{pid: id.pid, start: id.start, cmdline: process.cmdline, end: process.end})
-		process.mutex.Unlock()
-	}
-	processes.mutex.Unlock()
-
-	return processes_view
-}
-
 // Display the list of processes
 func displayProcessSync(processes []processDisplay) {
 	for _, process := range processes {
