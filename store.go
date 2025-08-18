@@ -86,16 +86,25 @@ func storeProcesses(processes *processList, db *db) {
 
 		processes_view := copyProcesses(processes)
 
+		db.mutex.Lock()
+		tx, err := db.db.Begin()
+		if err != nil {
+			log.Fatalf("[sql error] Failed to begin transaction: %s", err)
+		}
+
 		for _, process := range processes_view {
-			db.mutex.Lock()
-
-			_, err := db.db.Exec(insertProcessQuery, process.pid, process.start, process.end, process.cmdline)
-
-			db.mutex.Unlock()
+			_, err := tx.Exec(insertProcessQuery, process.pid, process.start, process.end, process.cmdline)
 
 			if err != nil {
 				log.Fatalf("Failed to update process %s: %s", process.cmdline, err)
 			}
+		}
+
+		err = tx.Commit()
+		db.mutex.Unlock()
+
+		if err != nil {
+			log.Fatalf("[sql error] Failed to commit transaction: %s", err)
 		}
 	}
 }
