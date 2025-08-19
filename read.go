@@ -13,7 +13,7 @@ import (
 // Stores the id of a process
 type processId struct {
 	pid     int
-	start   int
+	start   int64
 	cmdline string
 }
 
@@ -40,7 +40,7 @@ func getCmdLine(pid string) (string, error) {
 }
 
 // Fetches the start time of a process, by reading /proc/<pid>/stat
-func getStart(pid string) int {
+func getStart(pid string) int64 {
 	statPath := filepath.Join("/proc", pid, "stat")
 	data, err := os.ReadFile(statPath)
 	if err != nil {
@@ -52,11 +52,15 @@ func getStart(pid string) int {
 		log.Fatalf("[PID %s]: found %d columns in %s, expected at least 22.", pid, len(fields), statPath)
 	}
 
-	start, err := strconv.Atoi(fields[21])
+	const base = 10
+	const size = 64
+	start, err := strconv.ParseInt(fields[21], base, size)
 	if err != nil {
 		log.Fatalf("[PID %s]: start time %s is not a valid number.", pid, fields[21])
 	}
-	return start
+
+	const CLK_TLK = 100
+	return start / CLK_TLK
 }
 
 // Locks the processList and the current process to update the process with the new data.

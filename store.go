@@ -15,6 +15,30 @@ type db struct {
 	mutex sync.Mutex
 }
 
+// Contains all the data that represents a prices
+type processDb struct {
+	pid     int
+	start   int64
+	end     time.Time
+	cmdline string
+}
+
+// Copy the processList to unlock the mutex faster
+func getDbProcesses(processes *processList) []processDb {
+
+	processes_view := []processDb{}
+
+	processes.mutex.Lock()
+	for id, process := range processes.list {
+		process.mutex.Lock()
+		processes_view = append(processes_view, processDb{pid: id.pid, start: id.start, cmdline: id.cmdline, end: process.end})
+		process.mutex.Unlock()
+	}
+	processes.mutex.Unlock()
+
+	return processes_view
+}
+
 // Returns the value of XDG_DATA_HOME
 func getDataHomePath() string {
 	dataHome := os.Getenv("XDG_DATA_HOME")
@@ -83,7 +107,7 @@ func storeProcesses(processes *processList, db *db) {
 	for {
 		time.Sleep(time.Second)
 
-		processes_view := copyProcesses(processes)
+		processes_view := getDbProcesses(processes)
 
 		db.mutex.Lock()
 		tx, err := db.db.Begin()
