@@ -53,7 +53,10 @@ func getDataHomePath() string {
 }
 
 // Returns the path at which the sqlite file is stored
-func getDbPath() string {
+func getDbPath(argsDbPath string) string {
+	if argsDbPath != "" {
+		return argsDbPath
+	}
 	dataHome := getDataHomePath()
 	dataAppFolder := filepath.Join(dataHome, "gotop")
 
@@ -65,9 +68,9 @@ func getDbPath() string {
 }
 
 // Connect the database to create a db instance
-func getDb(resetDb bool) db {
-	dbPath := getDbPath()
-	if resetDb {
+func getDb(args args) db {
+	dbPath := getDbPath(args.dbPath)
+	if args.resetDb {
 		if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
 			log.Fatalf("Failed to remove %s: %s", dbPath, err)
 		}

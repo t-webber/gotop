@@ -42,7 +42,7 @@ func getBootTime() int64 {
 func main() {
 	args := parseArgs()
 
-	db := getDb(args.resetDb)
+	db := getDb(args)
 	initDb(db.db)
 
 	processes := processList{list: make(map[processId]*process)}
