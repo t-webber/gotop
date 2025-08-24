@@ -57,6 +57,7 @@ func main() {
 
 	loadProcesses(db.db, &processes)
 	go storeProcesses(&processes, &db)
+	go battery(&db)
 
 	select {}
 }

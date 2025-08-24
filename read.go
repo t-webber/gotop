@@ -90,7 +90,7 @@ func updateProcess(processes *processList, file os.DirEntry) {
 	}
 
 	cmdline, err := getCmdLine(pid_str)
-	if err != nil {
+	if err != nil || cmdline == "" {
 		return
 	}
 

@@ -91,7 +91,13 @@ CREATE TABLE IF NOT EXISTS processes (
 	end     DATETIME NOT NULL,
 	cmdline TEXT 	 NOT NULL,
 	UNIQUE(pid, start, cmdline)
-)`
+);
+
+CREATE TABLE IF NOT EXISTS battery (
+	time     DATETIME NOT NULL UNIQUE,
+	level    INTEGER  NOT NULL,
+	charging BOOLEAN  NOT NULL
+);`
 
 // Ensure database is initialised with the right tables
 func initDb(db *sql.DB) {
