@@ -20,7 +20,7 @@ type processId struct {
 // Stores the data of one process
 type process struct {
 	mutex sync.Mutex
-	end   time.Time
+	end   int64
 }
 
 // Stores all the processes that are watched.
@@ -64,7 +64,7 @@ func getStart(pid string) int64 {
 }
 
 // Locks the processList and the current process to update the process with the new data.
-func updateProcessWithData(processes *processList, processId processId, end time.Time) {
+func updateProcessWithData(processes *processList, processId processId, end int64) {
 	processes.mutex.Lock()
 
 	value, ok := processes.list[processId]
@@ -94,9 +94,9 @@ func updateProcess(processes *processList, file os.DirEntry) {
 		return
 	}
 
-	start := getStart(pid_str)
+	start := getStart(pid_str) + getBootTime()
 	processId := processId{pid: pid, start: start, cmdline: cmdline}
-	end := time.Now()
+	end := time.Now().Unix()
 
 	updateProcessWithData(processes, processId, end)
 

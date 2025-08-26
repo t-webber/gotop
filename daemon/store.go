@@ -19,7 +19,7 @@ type db struct {
 type processDb struct {
 	pid     int
 	start   int64
-	end     time.Time
+	end     int64
 	cmdline string
 }
 

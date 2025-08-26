@@ -22,7 +22,7 @@ func getDisplayProcesses(processes *processList, btime int64) []processDisplay {
 	processes.mutex.Lock()
 	for id, process := range processes.list {
 		process.mutex.Lock()
-		duration := process.end.Unix() - id.start - btime
+		duration := process.end - id.start - btime
 		processes_view = append(processes_view, processDisplay{pid: id.pid, duration: duration, cmdline: id.cmdline})
 		process.mutex.Unlock()
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"log"
-	"time"
 )
 
 func loadProcesses(db *sql.DB, processes *processList) {
@@ -14,7 +13,7 @@ func loadProcesses(db *sql.DB, processes *processList) {
 	defer rows.Close()
 
 	var id processId
-	var end time.Time
+	var end int64
 
 	for rows.Next() {
 		if err := rows.Scan(&id.pid, &id.start, &id.cmdline, &end); err != nil {
