@@ -21,17 +21,17 @@ type processDb struct {
 	start   int64
 	end     int64
 	cmdline string
+	cwd     *string
 }
 
 // Copy the processList to unlock the mutex faster
 func getDbProcesses(processes *processList) []processDb {
-
 	processes_view := []processDb{}
 
 	processes.mutex.Lock()
 	for id, process := range processes.list {
 		process.mutex.Lock()
-		processes_view = append(processes_view, processDb{pid: id.pid, start: id.start, cmdline: id.cmdline, end: process.end})
+		processes_view = append(processes_view, processDb{pid: id.pid, start: id.start, cmdline: id.cmdline, end: process.end, cwd: process.cwd})
 		process.mutex.Unlock()
 	}
 	processes.mutex.Unlock()
@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS processes (
 	start   INTEGER  NOT NULL,
 	end     DATETIME NOT NULL,
 	cmdline TEXT 	 NOT NULL,
+	cwd	TEXT,
 	UNIQUE(pid, start, cmdline)
 );
 
@@ -107,7 +108,7 @@ func initDb(db *sql.DB) {
 }
 
 const insertProcessQuery string = `
-INSERT INTO processes(pid, start, cmdline, end) VALUES(?, ?, ?, ?)
+INSERT INTO processes(pid, start, cmdline, end, cwd) VALUES(?, ?, ?, ?, ?)
 ON CONFLICT(pid, start, cmdline) DO UPDATE SET
 	end = excluded.end;`
 
@@ -125,7 +126,7 @@ func storeProcesses(processes *processList, db *db) {
 		}
 
 		for _, process := range processes_view {
-			_, err := tx.Exec(insertProcessQuery, process.pid, process.start, process.cmdline, process.end)
+			_, err := tx.Exec(insertProcessQuery, process.pid, process.start, process.cmdline, process.end, process.cwd)
 
 			if err != nil {
 				log.Fatalf("Failed to update process %s: %s", process.cmdline, err)

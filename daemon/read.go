@@ -21,6 +21,7 @@ type processId struct {
 type process struct {
 	mutex sync.Mutex
 	end   int64
+	cwd   *string
 }
 
 // Stores all the processes that are watched.
@@ -37,6 +38,16 @@ func getCmdLine(pid string) (string, error) {
 		return "", err
 	}
 	return strings.ReplaceAll(string(data), "\x00", " "), nil
+}
+
+// Read the current working directory of the process, by reading the
+// destination of the link at /proc/<pid>/cwd
+func getCwd(pid string) *string {
+	target, err := os.Readlink(filepath.Join("/proc", pid, "cwd"))
+	if err != nil {
+		return nil
+	}
+	return &target
 }
 
 // Fetches the start time of a process, by reading /proc/<pid>/stat
@@ -64,7 +75,7 @@ func getStart(pid string) int64 {
 }
 
 // Locks the processList and the current process to update the process with the new data.
-func updateProcessWithData(processes *processList, processId processId, end int64) {
+func updateProcessWithData(processes *processList, processId processId, end int64, cwd *string) {
 	processes.mutex.Lock()
 
 	value, ok := processes.list[processId]
@@ -74,7 +85,7 @@ func updateProcessWithData(processes *processList, processId processId, end int6
 		value.end = end
 		value.mutex.Unlock()
 	} else {
-		processes.list[processId] = &process{end: end}
+		processes.list[processId] = &process{end: end, cwd: cwd}
 		processes.mutex.Unlock()
 	}
 }
@@ -97,8 +108,9 @@ func updateProcess(processes *processList, file os.DirEntry) {
 	start := getStart(pid_str) + getBootTime()
 	processId := processId{pid: pid, start: start, cmdline: cmdline}
 	end := time.Now().Unix()
+	cwd := getCwd(pid_str)
 
-	updateProcessWithData(processes, processId, end)
+	updateProcessWithData(processes, processId, end, cwd)
 
 }
 
