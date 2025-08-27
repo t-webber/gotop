@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"syscall"
 	"time"
@@ -39,10 +40,13 @@ func battery(db *db) {
 		battery_level := get_battery_level()
 		is_charging := is_battery_charging()
 
-		if !is_charging && battery_level < 15 {
+		if !is_charging && battery_level < 20 {
+			if err := exec.Command("/bin/notify-send", "Plug your computer").Run(); err != nil {
+				log.Fatalf("Failed to notify: %s", err)
+			}
+			time.Sleep(time.Minute)
 			if err := syscall.Exec("/bin/sudo", []string{"sudo", "systemctl", "suspend"}, []string{}); err != nil {
-				log.Fatalf("Failed to sleep process: %s", err)
-
+				log.Fatalf("Failed to suspend device: %s", err)
 			}
 		}
 
@@ -53,6 +57,6 @@ func battery(db *db) {
 
 		db.mutex.Unlock()
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Minute)
 	}
 }
