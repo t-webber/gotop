@@ -6,16 +6,11 @@ import (
 	"os"
 )
 
-// Represents the arguments passed by the user through argv
-type args struct {
-	resetDb bool
-	display bool
-	dbPath  string
-}
+import "plog/lib"
 
 // Read given argvs to build args
-func parseArgs() args {
-	args := args{resetDb: false, display: false, dbPath: ""}
+func parseArgs() lib.Args {
+	args := lib.Args{ResetDb: false, Display: false, DbPath: ""}
 	waitingForPath := false
 
 	for idx, elt := range os.Args {
@@ -24,7 +19,7 @@ func parseArgs() args {
 		}
 
 		if waitingForPath {
-			args.dbPath = elt
+			args.DbPath = elt
 			waitingForPath = false
 			continue
 		}
@@ -32,9 +27,9 @@ func parseArgs() args {
 		switch elt {
 
 		case "--display":
-			args.display = true
+			args.Display = true
 		case "--resetdb":
-			args.resetDb = true
+			args.ResetDb = true
 		case "--path":
 			waitingForPath = true
 		case "--help":

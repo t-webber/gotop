@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"plog/lib"
 	"strconv"
 	"strings"
 
@@ -42,13 +43,13 @@ func getBootTime() int64 {
 func main() {
 	args := parseArgs()
 
-	db := getDb(args)
+	db := db{db: lib.GetDb(args)}
 	initDb(db.db)
 
 	processes := processList{list: make(map[processId]*process)}
 
 	go updateProcesses(&processes)
-	if args.display {
+	if args.Display {
 		btime := getBootTime()
 		go displayProcesses(&processes, btime)
 	} else {
