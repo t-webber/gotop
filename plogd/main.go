@@ -41,7 +41,7 @@ func getBootTime() int64 {
 }
 
 func main() {
-	args := parseArgs()
+	args := lib.ParseArgs()
 
 	db := db{db: lib.GetDb(args)}
 	initDb(db.db)

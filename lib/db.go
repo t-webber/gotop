@@ -7,13 +7,6 @@ import (
 	"path/filepath"
 )
 
-// Represents the arguments passed by the user through argv
-type Args struct {
-	ResetDb bool
-	Display bool
-	DbPath  string
-}
-
 // Returns the value of XDG_DATA_HOME
 func getDataHomePath() string {
 	dataHome := os.Getenv("XDG_DATA_HOME")
@@ -33,7 +26,7 @@ func getDbPath(argsDbPath string) string {
 		return argsDbPath
 	}
 	dataHome := getDataHomePath()
-	dataAppFolder := filepath.Join(dataHome, "gotop")
+	dataAppFolder := filepath.Join(dataHome, "plog")
 
 	if err := os.MkdirAll(dataAppFolder, 0700); err != nil {
 		log.Fatalf("Failed to create data dir at %s: %s", dataAppFolder, err)

@@ -1,16 +1,21 @@
-package main
+package lib
 
 import (
 	"fmt"
 	"log"
 	"os"
-
-	"github.com/t-webber/plog/lib"
 )
 
+// Represents the arguments passed by the user through argv
+type Args struct {
+	ResetDb bool
+	Display bool
+	DbPath  string
+}
+
 // Read given argvs to build args
-func parseArgs() lib.Args {
-	args := lib.Args{ResetDb: false, Display: false, DbPath: ""}
+func ParseArgs() Args {
+	args := Args{ResetDb: false, Display: false, DbPath: ""}
 	waitingForPath := false
 
 	for idx, elt := range os.Args {
@@ -33,7 +38,7 @@ func parseArgs() lib.Args {
 		case "--path":
 			waitingForPath = true
 		case "--help":
-			fmt.Println("Usage: gotop [--path <path>][--resetdb][--display][--help]")
+			fmt.Println("Usage: plogd [--path <path>][--resetdb][--display][--help]")
 			os.Exit(0)
 
 		default:
