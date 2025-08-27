@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"log"
 	"os"
-	"plog/lib"
 	"strconv"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/t-webber/plog/lib"
 )
 
 const CLK_TLK = 100

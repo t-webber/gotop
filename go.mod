@@ -1,4 +1,4 @@
-module plog
+module github.com/t-webber/plog
 
 go 1.24.6
 

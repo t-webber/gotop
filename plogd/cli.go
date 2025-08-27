@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-)
 
-import "plog/lib"
+	"github.com/t-webber/plog/lib"
+)
 
 // Read given argvs to build args
 func parseArgs() lib.Args {
