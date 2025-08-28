@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS processes (
 	id 	INTEGER  PRIMARY KEY AUTOINCREMENT,
 	pid     INTEGER  NOT NULL,
 	start   INTEGER  NOT NULL,
-	end     DATETIME NOT NULL,
+	end     INTEGER  NOT NULL,
 	cmdline TEXT 	 NOT NULL,
 	cwd	TEXT,
 	UNIQUE(pid, start, cmdline)
